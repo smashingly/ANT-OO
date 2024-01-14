@@ -1,0 +1,316 @@
+// ash@Ashs-MBP ~ % traceroute -n 8.8.8.8 2>&1 | jc --traceroute --pretty
+{
+  "destination_ip": "8.8.8.8",
+  "destination_name": "8.8.8.8",
+  "hops": [
+    {
+      "hop": 1,
+      "probes": [
+        {
+          "annotation": null,
+          "asn": null,
+          "ip": "192.168.0.1",
+          "name": null,
+          "rtt": 4.217
+        },
+        {
+          "annotation": null,
+          "asn": null,
+          "ip": "192.168.0.1",
+          "name": null,
+          "rtt": 3.129
+        }
+      ]
+    },
+    {
+      "hop": 2,
+      "probes": [
+        {
+          "annotation": null,
+          "asn": null,
+          "ip": "192.168.0.180",
+          "name": null,
+          "rtt": 7.429
+        },
+        {
+          "annotation": null,
+          "asn": null,
+          "ip": "192.168.0.180",
+          "name": null,
+          "rtt": 2.622
+        },
+        {
+          "annotation": null,
+          "asn": null,
+          "ip": "192.168.0.180",
+          "name": null,
+          "rtt": 2.591
+        }
+      ]
+    },
+    {
+      "hop": 3,
+      "probes": []
+    },
+    {
+      "hop": 4,
+      "probes": [
+        {
+          "annotation": null,
+          "asn": null,
+          "ip": "192.168.0.180",
+          "name": null,
+          "rtt": 241.247
+        },
+        {
+          "annotation": null,
+          "asn": null,
+          "ip": "192.168.0.180",
+          "name": null,
+          "rtt": 27.536
+        },
+        {
+          "annotation": null,
+          "asn": null,
+          "ip": "192.168.0.180",
+          "name": null,
+          "rtt": 18.965
+        }
+      ]
+    },
+    {
+      "hop": 5,
+      "probes": [
+        {
+          "annotation": null,
+          "asn": null,
+          "ip": "192.168.0.180",
+          "name": null,
+          "rtt": 92.464
+        },
+        {
+          "annotation": null,
+          "asn": null,
+          "ip": "192.168.0.180",
+          "name": null,
+          "rtt": 16.608
+        },
+        {
+          "annotation": null,
+          "asn": null,
+          "ip": "192.168.0.180",
+          "name": null,
+          "rtt": 29.827
+        }
+      ]
+    },
+    {
+      "hop": 6,
+      "probes": [
+        {
+          "annotation": null,
+          "asn": null,
+          "ip": "10.5.86.72",
+          "name": null,
+          "rtt": 44.482
+        },
+        {
+          "annotation": null,
+          "asn": null,
+          "ip": "10.5.86.72",
+          "name": null,
+          "rtt": 15.953
+        },
+        {
+          "annotation": null,
+          "asn": null,
+          "ip": "10.5.86.72",
+          "name": null,
+          "rtt": 39.533
+        }
+      ]
+    },
+    {
+      "hop": 7,
+      "probes": [
+        {
+          "annotation": null,
+          "asn": null,
+          "ip": "203.50.63.96",
+          "name": null,
+          "rtt": 13.111
+        },
+        {
+          "annotation": null,
+          "asn": null,
+          "ip": "203.50.63.96",
+          "name": null,
+          "rtt": 41.212
+        },
+        {
+          "annotation": null,
+          "asn": null,
+          "ip": "203.50.63.96",
+          "name": null,
+          "rtt": 22.977
+        }
+      ]
+    },
+    {
+      "hop": 8,
+      "probes": [
+        {
+          "annotation": null,
+          "asn": null,
+          "ip": "203.50.61.96",
+          "name": null,
+          "rtt": 19.499
+        },
+        {
+          "annotation": null,
+          "asn": null,
+          "ip": "203.50.61.96",
+          "name": null,
+          "rtt": 21.162
+        },
+        {
+          "annotation": null,
+          "asn": null,
+          "ip": "203.50.61.96",
+          "name": null,
+          "rtt": 19.395
+        }
+      ]
+    },
+    {
+      "hop": 9,
+      "probes": [
+        {
+          "annotation": null,
+          "asn": null,
+          "ip": "203.50.11.177",
+          "name": null,
+          "rtt": 44.598
+        },
+        {
+          "annotation": null,
+          "asn": null,
+          "ip": "203.50.11.177",
+          "name": null,
+          "rtt": 34.497
+        },
+        {
+          "annotation": null,
+          "asn": null,
+          "ip": "203.50.11.177",
+          "name": null,
+          "rtt": 162.029
+        }
+      ]
+    },
+    {
+      "hop": 10,
+      "probes": [
+        {
+          "annotation": null,
+          "asn": null,
+          "ip": "58.163.91.194",
+          "name": null,
+          "rtt": 74.002
+        },
+        {
+          "annotation": null,
+          "asn": null,
+          "ip": "74.125.49.138",
+          "name": null,
+          "rtt": 33.706
+        },
+        {
+          "annotation": null,
+          "asn": null,
+          "ip": "58.163.91.194",
+          "name": null,
+          "rtt": 25.387
+        }
+      ]
+    },
+    {
+      "hop": 11,
+      "probes": [
+        {
+          "annotation": null,
+          "asn": null,
+          "ip": "192.178.97.141",
+          "name": null,
+          "rtt": 47.415
+        },
+        {
+          "annotation": null,
+          "asn": null,
+          "ip": "192.178.97.145",
+          "name": null,
+          "rtt": 32.045
+        },
+        {
+          "annotation": null,
+          "asn": null,
+          "ip": "192.178.98.31",
+          "name": null,
+          "rtt": 31.638
+        }
+      ]
+    },
+    {
+      "hop": 12,
+      "probes": [
+        {
+          "annotation": null,
+          "asn": null,
+          "ip": "216.239.57.119",
+          "name": null,
+          "rtt": 38.629
+        },
+        {
+          "annotation": null,
+          "asn": null,
+          "ip": "209.85.253.177",
+          "name": null,
+          "rtt": 19.44
+        },
+        {
+          "annotation": null,
+          "asn": null,
+          "ip": "209.85.253.181",
+          "name": null,
+          "rtt": 56.475
+        }
+      ]
+    },
+    {
+      "hop": 13,
+      "probes": [
+        {
+          "annotation": null,
+          "asn": null,
+          "ip": "8.8.8.8",
+          "name": null,
+          "rtt": 33.465
+        },
+        {
+          "annotation": null,
+          "asn": null,
+          "ip": "8.8.8.8",
+          "name": null,
+          "rtt": 19.319
+        },
+        {
+          "annotation": null,
+          "asn": null,
+          "ip": "8.8.8.8",
+          "name": null,
+          "rtt": 14.429
+        }
+      ]
+    }
+  ]
+}

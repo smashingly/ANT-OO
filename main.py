@@ -1,4 +1,4 @@
-from ant import TestEngine, ManualImportHandler, DummyExportHandler, CsvImportHandler
+from ant import TestEngine, ManualImportHandler, StdoutExportHandler, CsvImportHandler
 import logging
 
 """################################### START OF LOGGER CONFIGURATION ###################################"""
@@ -25,6 +25,6 @@ logger.addHandler(f_handler)
 
 """#################################### END OF LOGGER CONFIGURATION ####################################"""
 
-# test_engine = TestEngine(ManualImportHandler(destination="8.8.8.8"), DummyExportHandler())
-test_engine = TestEngine(CsvImportHandler("tests.csv"), DummyExportHandler())
+test_engine = TestEngine(ManualImportHandler(), StdoutExportHandler())
+# test_engine = TestEngine(CsvImportHandler("tests.csv"), StdoutExportHandler())
 test_engine.run_tests()
