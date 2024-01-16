@@ -33,32 +33,10 @@ class ImportHandler:
         stream-based handler (database, API, etc) this method would just initialise the source (eg. open database).
         Generic tasks appear in this parent class initialise() method, and source-specific tasks appear in the child
         class's method. It is expected that the parent initialise() method is called *after* the child's; that is,
-        the last line of the child's extended initialise() method should be super().initialise(). The parent method
-        expects the child to have populated self.intermediate[] with a list of dicts, where each dict represents a
-        test. The parent method then uses this data to create Test objects and append them to self.tests[].
-        NOTE: in stream-based import handlers, we may OVERRIDE initialise() rather than extend it, since a stream-
-        based handler will not be able to populate self.intermediate[] (or self.tests[]), as it's pulling in records
-        one at a time from a source that's possibly remote.
+        the last line of the child's extended initialise() method should be super().initialise().
         :return: None
         """
-        # Iterate over intermediate[] and check what kind of test it is; create appropriate Test object accordingly.
-        # TODO: The intermediate[] -> tests[] interface doesn't fit here for stream-based handlers, although they
-        #  could just override the parent's initialise() entirely. Another approach would be to introduce a middle layer
-        #  of subclassing, ie. ImportHandler -> StreamHandler | FileHandler, with StreamHandler -> SqlHandler,
-        #  ApiHandler, etc. and FileHandler -> CsvHandler, JsonHandler, etc. The current code below would be used for
-        #  the FileHandler parent class.
-
-        # TODO: I want to get rid of intermediate[] as it doesn't serve any purpose. I created it because I wrongly
-        #  felt like the base class initialise() and subclass initialise() were separate entitites, so an intermediate
-        #  variable was needed between them. But in reality it's one extended initialise() method, and if I was to have
-        #  this intermediate list in a single method, it would immediately seem stupid and unnecessary. The answer is
-        #  to have the subclass initialise() create Test child objects either directly into test[], or into
-        #  intermediate[].
-
-        # for test in self.intermediate:
-        #     cls = self.class_dict.get(test['test_type'])  # if test_type = "ping", cls = PingTest class
-        #     args = {key: value for key, value in test.items() if key != 'test_type'}
-        #     self.tests.append(cls(**args))
+        pass
 
     def next_test(self):
         # This method will return the next test in import_handler.tests[], and will also remove it from the list.
@@ -137,7 +115,7 @@ class CsvImportHandler(ImportHandler):
                 counter += 1
                 # self.intermediate.append(self.data_cleaner(data=row))
 
-            num_tests = reader.line_num - 1     # Exclude the header row from our count
+            num_tests = reader.line_num - 1  # Exclude the header row from our count
             logger.debug(f"{self.__class__.__name__}: Imported {num_tests} tests from {self.file_path}")
 
         super().initialise()  # get the parent class to do the rest of the work
@@ -187,25 +165,13 @@ class StdoutExportHandler(ExportHandler):
         :return: None
         """
         # TODO: I wonder if tabulated output would be feasible. The main problem is that different tests have
-        #  different result attributs (table columns) so we should first develop more Test subclasses and see what
+        #  different result attributes (table columns) so we should first develop more Test subclasses and see what
         #  the common attributes are.
 
-        # TODO: consider pulling the code out of the if isinstance() block below, as we are now using Result's __str__
-        #  method to correctly print the result, so this should be reusable for other types of test.  To be confirmed
-        #  after we write the Traceroute parts of the program and see if its export code would be identical.
-
-        if isinstance(result, PingResult):
-            timestamp_str = result.timestamp.strftime("%H:%M:%S %d-%m-%Y")
-            print(f'\nTimestamp:     {timestamp_str}')
-            print(f"Destination: {result}")  # {result} is the entire Result object, which has a __str__ method
-        elif isinstance(result, TracerouteResult):
-            print(result)
-        else:
-            # throw an exception
-            pass
+        print(f"{result}")
 
 
-class FileExportHandler(ExportHandler):
+class CsvExportHandler(ExportHandler):
     # this class will contain methods for exporting test results to a file. It will inherit from ExportHandler.
     def __init__(self):
         super().__init__()
@@ -229,6 +195,8 @@ class Result:
 
 class PingResult(Result):
     # This class will contain the results of an icmplib.ping test.
+    test_type = "ping"
+
     def __init__(self, timestamp, id_number, host_obj: Host):
         """
         Data-oriented class that holds the results of a ping test. It is a subclass of Result, and it is expected that
@@ -254,7 +222,7 @@ class PingResult(Result):
     def __str__(self):
         # return self.str_format
         return (
-            f"Host {self.destination} status: {'UP' if self.is_alive else 'DOWN'}. RTT values (min/avg/max/jitter): "
+            f"Test {self.id_number}: {self.__class__.test_type}: Host {self.destination} status: {'UP' if self.is_alive else 'DOWN'}. RTT values (min/avg/max/jitter): "
             f"{self.min_rtt} / {self.avg_rtt} / {self.max_rtt} / {self.jitter}. Packets sent/received (loss%): "
             f"{self.packets_sent}/{self.packets_received} ({self.packet_loss * 100}%).")
 
@@ -262,6 +230,8 @@ class PingResult(Result):
 class TracerouteResult(Result):
     # This class will contain the results of a command-line traceroute test that has been parsed by jc into a dict.
     # The arguments to the constructor will be timestamp, id_number, and data (the dict that jc returns).
+    test_type = "traceroute"
+
     def __init__(self, timestamp, id_number, data):
         self.destination_ip = data['destination_ip']
         self.destination_name = data['destination_name']
@@ -271,7 +241,13 @@ class TracerouteResult(Result):
 
     def __str__(self):
         # Define here so that we have a return-able value even if the whole block is skipped because self.hops is empty
-        output_text = ""
+
+        # If Test destination was an IP address rather than a hostname, destination_name will == destination_ip
+        if self.destination_name == self.destination_ip:
+            dest_text = self.destination_ip  # only display the destination IP in the result output
+        else:
+            dest_text = f"{self.destination_name} ({self.destination_ip})"  # display 'hostname (ip addr)'
+        output_text = f"Test {self.id_number}: {self.__class__.test_type} to {dest_text}:\n"
 
         # The following block looks pretty gnarly but all it's doing is iterating over each hop to print each hop's
         # probes. And for each probe, it'll print that probe's full details (ip, name, RTT) if its IP address differs
@@ -285,13 +261,17 @@ class TracerouteResult(Result):
             output_text += pad_space + hop_num_str + " " * 2
             if hop['probes']:  # if a whole hop got no probe responses, probes[] will be empty
                 first_probe = hop['probes'][0]  # interim variable for readability's sake
-                this_hop_text = f"{first_probe['name']} ({first_probe['ip']}) {first_probe['rtt']} ms"
+                name_ip_text = self._format_dest(first_probe['name'], first_probe['ip'])
+                rtt_text = self._format_rtt(first_probe['rtt'])
+                this_hop_text = f"{name_ip_text}  {rtt_text}"
                 prev_ip = first_probe['ip']
                 for probe in hop['probes'][1:]:  # for all probes except the first
                     if probe['ip'] == prev_ip:  # if this probe went via the same router IP as last probe
                         this_hop_text += " " * 2 + f"{probe['rtt']} ms"  # then stay on same line and just add the RTT
                     else:  # if this probe went via different router, print on a separate line
-                        this_hop_text += "\n" + " " * 4 + f"{probe['name']} ({probe['ip']}) {probe['rtt']} ms"
+                        name_ip_text = self._format_dest(probe['name'], probe['ip'])
+                        rtt_text = self._format_rtt(probe['rtt'])
+                        this_hop_text += "\n" + " " * 4 + f"{name_ip_text}  {rtt_text}"
                     prev_ip = probe['ip']  # update our previous-probe reference for the next iteration
             else:
                 this_hop_text = "* * *"  # probe list is empty because this traceroute hop got no responses
@@ -299,35 +279,36 @@ class TracerouteResult(Result):
 
         return output_text
 
-    """
-    Example output - looks exactly like a MacOS traceroute, huh?
-    
-     1  mymodem (192.168.0.1) 4.973 ms
-     2  ashs-mbp (192.168.0.180) 15.649 ms  2.728 ms  2.201 ms
-     3  * * *
-     4  * * *
-     5  ashs-mbp (192.168.0.180) 252.135 ms  144.268 ms  16.953 ms
-     6  10.5.86.72 (10.5.86.72) 27.017 ms  33.914 ms  16.121 ms
-     7  203.50.63.96 (203.50.63.96) 16.198 ms  23.78 ms  12.975 ms
-     8  bundle-ether26.stl-core30.sydney.telstra.net (203.50.61.96) 32.825 ms  17.052 ms  160.231 ms
-     9  bundle-ether1.chw-edge903.sydney.telstra.net (203.50.11.177) 125.895 ms  23.198 ms  12.961 ms
-    10  goo2503069.lnk.telstra.net (58.163.91.194) 17.526 ms
-        74.125.49.138 (74.125.49.138) 16.775 ms  15.713 ms
-    11  192.178.97.141 (192.178.97.141) 18.212 ms
-        192.178.97.215 (192.178.97.215) 20.137 ms
-        192.178.97.219 (192.178.97.219) 17.073 ms
-    12  142.250.212.137 (142.250.212.137) 101.693 ms  16.833 ms  23.173 ms
-    13  syd09s24-in-f4.1e100.net (142.250.76.100) 17.366 ms  18.382 ms  15.083 ms
-    """
+    @staticmethod
+    def _format_dest(name, ip_addr):
+        """Quick 'n' dirty little conditional string formatter that gets used twice in __str__"""
+        # If traceroute was run with a dest IP (not a hostname) and name-lookup is disabled (-n), JC's parsed results
+        # set 'name' to None. This results in output like "None (8.8.8.8)". In those instances this function will
+        # return "8.8.8.8".
+        return f"{name} ({ip_addr})" if name is not None else ip_addr
+
+    @staticmethod
+    def _format_rtt(rtt):
+        """Quick 'n' dirty little conditional RTT string formatter that gets used twice in __str__"""
+        # JC will parse a timed-out probe's RTT as None, so this converts that to "*", like a traceroute should.
+        return f"{rtt} ms" if rtt is not None else "*"
 
     @property
     def log_text(self):
-        string_text = self.__str__()
-        # string_text is a multi-line string. iterate over it and add 20 spaces to the start of each line
-        indented_text = "\n"  # need to drop it down a line from the main logger message ("test x result: ")
-        for line in string_text.splitlines():
-            indented_text += " " * 35 + "| " + line + "\n"
-        return indented_text
+        if self.destination_name == self.destination_ip:
+            dest_text = self.destination_ip  # only display the destination IP in the result output
+        else:
+            dest_text = f"{self.destination_name} ({self.destination_ip})"  # display 'hostname (ip addr)'
+
+        return f"Test {self.id_number}: {self.__class__.test_type} to {dest_text}: {self.hops}"
+
+        # OLD log_text code - decided to just include the raw results as a dict when logging at debug level
+        # string_text = self.__str__()
+        # # string_text is a multi-line string. iterate over it and add 20 spaces to the start of each line
+        # indented_text = "\n"  # need to drop it down a line from the main logger message ("test x result: ")
+        # for line in string_text.splitlines():
+        #     indented_text += " " * 35 + "| " + line + "\n"
+        # return indented_text
 
 
 class Test:
@@ -493,8 +474,8 @@ class TracerouteTest(Test):
         self.count = self.convert_type(arg=kwargs.get('count'), to_type=int, default=3)
         self.payload_size = self.convert_type(arg=kwargs.get('payload_size'), to_type=int)
         self.timeout = self.convert_type(arg=kwargs.get('timeout'), to_type=int, default=1)
-        self.max_probes = self.convert_type(arg=kwargs.get('max_probes'), to_type=int, default=30)
-        self.dont_resolve_names = self.convert_type(arg=kwargs.get('dont_resolve_names'), to_type=bool, default=False)
+        self.max_probes = self.convert_type(arg=kwargs.get('traceroute_maxprobes'), to_type=int, default=30)
+        self.dont_resolve_names = self.convert_type(arg=kwargs.get('traceroute_nolookup'), to_type=bool, default=False)
         self.interval = self.convert_type(arg=kwargs.get('interval'), to_type=float, default=0.5)
 
         # Note: we currently don't use addr_family for traceroutes.
@@ -502,7 +483,7 @@ class TracerouteTest(Test):
 
         # Convert interval from seconds to milliseconds, type int. Ping & traceroute share the same 'interval' column,
         # ping expects an interval as seconds whereas traceroute expects milliseconds (and of type int).
-        self.interval = int(self.interval*1000)
+        self.interval = int(self.interval * 1000)
 
     def _specific_run(self) -> TracerouteResult:
         """
