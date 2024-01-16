@@ -25,6 +25,6 @@ logger.addHandler(f_handler)
 
 """#################################### END OF LOGGER CONFIGURATION ####################################"""
 
-test_engine = TestEngine(ManualImportHandler(), StdoutExportHandler())
-# test_engine = TestEngine(CsvImportHandler("tests.csv"), StdoutExportHandler())
+# test_engine = TestEngine(ManualImportHandler(), StdoutExportHandler())
+test_engine = TestEngine(CsvImportHandler("tests.csv"), StdoutExportHandler())
 test_engine.run_tests()

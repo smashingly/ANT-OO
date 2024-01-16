@@ -4,7 +4,7 @@ import json
 import sys
 
 # from types import NoneType
-from icmplib import ping, traceroute, Host
+from icmplib import ping, Host
 from datetime import datetime
 import subprocess
 import jc
@@ -12,8 +12,6 @@ import logging
 
 logger = logging.getLogger("ant")
 
-
-# TODO: add logging throughout this module, it's only in a few places at the moment.
 
 class ImportHandler:
     # Base class for all import handlers. It will contain methods for importing test cases from various sources.
@@ -23,6 +21,10 @@ class ImportHandler:
     def __init__(self):
         self.intermediate = []  # this is the common interface between the child class and the super class
         self.tests = []  # this will be a list of Test objects
+
+        # This list must be updated when a new Test subclass is added
+        self.test_classes = [PingTest, TracerouteTest]
+        self.tests_register = {cls.name: cls for cls in self.test_classes}  # {"ping": PingTest, ... etc}
 
     def initialise(self):
         """
@@ -40,48 +42,23 @@ class ImportHandler:
         :return: None
         """
         # Iterate over intermediate[] and check what kind of test it is; create appropriate Test object accordingly.
-        # TODO: I don't think this code all belongs here. Any issues that PingTest has with None values should be
-        #  handled by PingTest's constructor, not here. Omitting test_type is okay to filter out here though, as that
-        #  will be universal across all import sources.
-        #  Also, The intermediate[] -> tests[] interface doesn't fit here for stream-based handlers, although they
+        # TODO: The intermediate[] -> tests[] interface doesn't fit here for stream-based handlers, although they
         #  could just override the parent's initialise() entirely. Another approach would be to introduce a middle layer
         #  of subclassing, ie. ImportHandler -> StreamHandler | FileHandler, with StreamHandler -> SqlHandler,
         #  ApiHandler, etc. and FileHandler -> CsvHandler, JsonHandler, etc. The current code below would be used for
         #  the FileHandler parent class.
+
+        # TODO: I want to get rid of intermediate[] as it doesn't serve any purpose. I created it because I wrongly
+        #  felt like the base class initialise() and subclass initialise() were separate entitites, so an intermediate
+        #  variable was needed between them. But in reality it's one extended initialise() method, and if I was to have
+        #  this intermediate list in a single method, it would immediately seem stupid and unnecessary. The answer is
+        #  to have the subclass initialise() create Test child objects either directly into test[], or into
+        #  intermediate[].
+
         # for test in self.intermediate:
-        #     if test['test_type'] == PingTest.name:  # "ping"
-        #         # Create a PingTest object and append it to tests[]. We want to omit any arguments which are None.
-        #         # This is because the PingTest constructor has defaults for infrequently used values like IP version,
-        #         # payload size, etc and we don't want to override those inadvertently if our importer (eg CSV) has
-        #         # set those values to None. We also omit the test_type argument, as that's not relevant for PingTest.
-        #
-        #         # Make a dict of args for creating a PingTest, excluding None values as well as test_type
-        #         # ping_args = {}
-        #         ping_args = {key: value for key, value in test.items() if key != 'test_type'}
-        #
-        #         self.tests.append(PingTest(**ping_args))
-        #         logger.debug(f"{self.__class__.__name__}: Added PingTest object to tests[]. ping_args = {ping_args}")
-        #     elif test['test_type'] == 'traceroute':
-        #         trace_args = {}
-        #         for key, value in test.items():
-        #             if value is not None and key != 'test_type':
-        #                 trace_args[key] = value
-        #
-        #         self.tests.append(TracerouteTest(**trace_args))
-        #     else:
-        #         # throw an exception
-        #         pass
-
-        # This list must be updated when a new Test subclass is added
-        test_classes = [PingTest, TracerouteTest]
-
-        class_dict = {cls.name: cls for cls in test_classes}      # {"ping": PingTest, ... etc}
-
-        for test in self.intermediate:
-            cls = class_dict.get(test['test_type'])     # if test_type = "ping", cls = PingTest class
-            args = {key: value for key, value in test.items() if key != 'test_type'}
-            self.tests.append(cls(**args))
-
+        #     cls = self.class_dict.get(test['test_type'])  # if test_type = "ping", cls = PingTest class
+        #     args = {key: value for key, value in test.items() if key != 'test_type'}
+        #     self.tests.append(cls(**args))
 
     def next_test(self):
         # This method will return the next test in import_handler.tests[], and will also remove it from the list.
@@ -107,13 +84,29 @@ class ManualImportHandler(ImportHandler):
         self.destination = destination
 
     def initialise(self):
-        self.intermediate.append(
-            {'test_type': 'ping', 'id_number': 1, 'destination': self.destination, 'count': 10, 'interval': 0.2,
-             'timeout': 1, 'family': 4, 'privileged': False}
-        )
-        self.intermediate.append(
-            {'test_type': 'traceroute', 'id_number': 2, 'destination': 'www.google.com'}
-        )
+        self.manual_tests = [
+            {
+                'test_type': 'ping',
+                'id_number': 1,
+                'destination': self.destination,
+                'count': 10,
+                'interval': 0.2,
+                'timeout': 1
+            },
+            {
+                'test_type': 'traceroute',
+                'id_number': 2,
+                'destination': 'www.google.com'
+            }
+        ]
+
+        for test in self.manual_tests:
+            # dynamically figure out which Test subclass maps to the 'test_type' field
+            new_class = self.tests_register.get(test['test_type'])  # if test_type = "ping", new_class = PingTest
+            args = {key: value for key, value in test.items() if key != 'test_type'}
+            self.tests.append(new_class(**args))
+
+        logger.debug(f"{self.__class__.__name__}: Imported {len(self.manual_tests)} manual tests")
 
         super().initialise()
 
@@ -135,11 +128,17 @@ class CsvImportHandler(ImportHandler):
         with open(self.file_path, newline='') as csvfile:
             reader = csv.DictReader(csvfile)
             row: dict  # this is a type-hint to prevent a spurious PyCharm warning from appearing
+            counter = 0
             for row in reader:
-                self.intermediate.append(self.data_cleaner(data=row))
-            # write a logger.debug entry that gives the count of entries that were just imported
-            logger.debug(f"{self.__class__.__name__}: Imported {len(self.intermediate)} tests "
-                         f"from {self.file_path} to intermediate")
+                cls = self.tests_register.get(row['test_type'])  # if test_type = "ping", cls = PingTest class
+                clean = self.data_cleaner(row)
+                args = {key: value for key, value in clean.items() if key != 'test_type'}
+                self.tests.append(cls(**args))
+                counter += 1
+                # self.intermediate.append(self.data_cleaner(data=row))
+
+            num_tests = reader.line_num - 1     # Exclude the header row from our count
+            logger.debug(f"{self.__class__.__name__}: Imported {num_tests} tests from {self.file_path}")
 
         super().initialise()  # get the parent class to do the rest of the work
 
@@ -220,6 +219,12 @@ class Result:
         # the common attribute across all results is the timestamp
         self.timestamp = timestamp
         self.id_number = id_number
+
+    @property
+    def log_text(self):
+        # Generic parent-class getter suitable for most single-line tests. Override for any Result subclasses that have
+        # complex or multi-line output (eg. traceroute).
+        return self.__str__()
 
 
 class PingResult(Result):
@@ -315,6 +320,15 @@ class TracerouteResult(Result):
     13  syd09s24-in-f4.1e100.net (142.250.76.100) 17.366 ms  18.382 ms  15.083 ms
     """
 
+    @property
+    def log_text(self):
+        string_text = self.__str__()
+        # string_text is a multi-line string. iterate over it and add 20 spaces to the start of each line
+        indented_text = "\n"  # need to drop it down a line from the main logger message ("test x result: ")
+        for line in string_text.splitlines():
+            indented_text += " " * 35 + "| " + line + "\n"
+        return indented_text
+
 
 class Test:
     # This is a base class for classes that represent different types of network test (eg. PingTest,
@@ -328,7 +342,7 @@ class Test:
         self.id_number = self.convert_type(id_number, int)
         self.timestamp = None
 
-    def run(self):
+    def run(self) -> Result:
         """
         This method wraps the _specific_run() method, performing generic tasks before calling the child class's
         _specific_run() method, then finally generic tasks before returning the result to the caller. This avoids code
@@ -349,7 +363,8 @@ class Test:
 
         result = self._specific_run()
 
-        logger.info(f"Test {self.id_number} '{self.name}' completed. Result: {result}")
+        logger.info(f"Test {self.id_number} '{self.name}' executed.")
+        logger.debug(f"Test {self.id_number} '{self.name}' Result: {result.log_text}")
 
         return result
 
@@ -364,26 +379,42 @@ class Test:
         # When creating child classes, the only responsibility of this method is to run the actual test (eg. execute a
         # ping), perform specific data-mangling (if any) for this test type, then return the result. The parent class's
         # run() method takes care of the rest.
-        pass
+
+        # We return a dummy Result object to stop IDE warnings about Test.run() trying to access result.log_text,
+        # when the "result = self._specific_run()" in Test.run() evaluates to None. This method is always overridden,
+        # so it should be safe to put this here.
+        return Result(None, None)
 
     @staticmethod
-    def convert_type(arg, to_type):
+    def convert_type(arg, to_type, default=None):
         """
-        Conditional data-type changer for converting data types only if necessary. This is to reduce code duplication
-        in the constructors of any Test subclasses that use libraries like icmplib which are strictly typed. It's
-        generic enough to be kept in the parent class, further reducing code duplication.
+        Conditional data-cleaner for converting data types only if necessary. It first checks if arg is None, and if it
+        is, then it returns default. If the arg is not None, it then checks if type(arg) = to_type.  If not, it
+        converts arg's type to to_type and returns it.  Note that booleans are explicitly checked for string values of
+        "true" or "false", because any non-empty string is truthy, e.g. "if 'false'" actually evaluates to True.
+        This method exists to reduce pain with libraries like icmplib which are strictly typed and can't handle (or
+        convert on the fly) numeric parameters like count or timeout that are passed to it as a string, or if the
+        parameter is set to None. This commonly occurs when working with formats such as CSV, where all values are
+        read in as strings ("5", "true", "0.123"), and empty CSV fields are read in as None. The method sits in Test
+        base class, allowing it to be inherited by all Test subclasses and avoid code duplication. It's a static
+        method because it doesn't access any instance attributes or methods.
         :param arg: the variable that needs checking/converting
         :param to_type: the target data type, e.g. int | float | bool
-        :return: the converted variable, or the original variable if no conversion was necessary
+        :param default: If arg == None, return this default value.  Defaults to None.
+        :return: to_type(arg), default, or the original arg if no conversion was necessary.
         """
-        if isinstance(arg, to_type):
+        if arg is None:
+            return default
+        elif isinstance(arg, to_type):
             return arg
         else:
             try:
+                # Non-empty strings will always evaluate to True, so we must explicitly check for "false". Also we
+                # must check for any other random string values (eg. "rabbit"), otherwise they would evaluate to True.
                 if to_type == bool:
                     if arg.lower() == "true":
                         return True
-                    elif arg.lower() == 'false':
+                    elif arg.lower() == "false":
                         return False
                     else:
                         raise ValueError
@@ -398,24 +429,29 @@ class PingTest(Test):
     name = "ping"
 
     # This class will contain the parameters and execution code for a ping test
-    def __init__(self, id_number, destination, count=5, interval=0.2, payload_size=56, timeout=1, family=4,
-                 privileged=False):
+    def __init__(self, id_number: int, destination: str, **kwargs):
         super().__init__(id_number=id_number)
 
-        # During assignment of arguments to instance attributes we ensure that any arguments that are explicitly None
-        # are explicitly set to their defaults. If they are not None then we do some data-cleaning to convert some
-        # str values to int, float or bool values, before assigning them to their respective instance attributes.
+        # During assignment of arguments to instance attributes we ensure that any arguments that == None are
+        # explicitly set to their defaults. If they're the wrong type (typically numbers/bools imported as strings),
+        # we do some data-cleaning to convert them to the correct type.
         # Note: We already convert '' to None in the CsvImportHandler.data_cleaner() method.
         # Note: we use "is not None" because other values (e.g. zero) will evaluate to False, and we don't want that.
-        self.count = self.convert_type(count, int) if count is not None else 5
-        self.payload_size = self.convert_type(payload_size, int) if payload_size is not None else 56
-        self.timeout = self.convert_type(timeout, int) if timeout is not None else 1
-        self.family = self.convert_type(family, int) if family is not None else 4
-        self.interval = self.convert_type(interval, float) if interval is not None else 0.2
-        self.privileged = self.convert_type(privileged, bool) if privileged is not None else False
 
-        # this one doesn't need any conversion
+        # this one shouldn't need any conversion, as it's always going to arrive as a string
         self.destination = destination
+
+        # arguments that will need converting to int: count, payload_size, timeout, family
+        self.count = self.convert_type(arg=kwargs.get('count'), to_type=int, default=5)
+        self.payload_size = self.convert_type(arg=kwargs.get('payload_size'), to_type=int, default=56)
+        self.timeout = self.convert_type(arg=kwargs.get('timeout'), to_type=int, default=1)
+        self.addr_family = self.convert_type(arg=kwargs.get('addr_family'), to_type=int, default=4)
+        self.interval = self.convert_type(arg=kwargs.get('interval'), to_type=float, default=0.2)
+
+        # This assignment tells others (and linters/IDEs) that these method arguments, which are present on every CSV
+        # row (but empty for ping tests), are deliberately ignored.
+        _ = kwargs.get('dont_resolve_names')
+        _ = kwargs.get('max_probes')
 
     def _specific_run(self) -> PingResult:
         """
@@ -427,32 +463,46 @@ class PingTest(Test):
         :return: A subclass of Result, eg. PingResult
         """
         host = ping(address=self.destination, count=self.count, interval=self.interval, payload_size=self.payload_size,
-                    timeout=self.timeout, family=self.family, privileged=self.privileged)
+                    timeout=self.timeout, family=self.addr_family, privileged=False)
         test_result = PingResult(timestamp=self.timestamp, id_number=self.id_number, host_obj=host)
 
         return test_result
 
 
 class TracerouteTest(Test):
+    # TODO: implement on all Test subclasses some CONSTANT values for default parameters, and/or pull those from a
+    #  config file. Eg. default timeout/count/etc values should be user-configurable somehow/somewhere, and there
+    #  should be fallback defaults stored as nice clear constants somewhere obvious in the code.
+
     # All Test subclasses must have a class attribute called 'name' which is a string that identifies the test type.
     name = "traceroute"
 
-    # This class will contain the parameters and execution code for a traceroute test
-    def __init__(self, id_number, destination, count=3, timeout=1, max_probes=30, dont_resolve_names=False):
+    def __init__(self, id_number: int, destination: str, **kwargs):
         super().__init__(id_number=id_number)
 
         # During assignment of arguments to instance attributes we do some data-cleaning to convert some str values to
         # int, float or bool values. Note: We already convert '' to None in the CsvImportHandler.data_cleaner() method,
-        # so we don't need to do that here.
+        # so we don't need to do that here. We're not using icmplib for traceroute in this class, so we don't strictly
+        # need to do type-conversion because the traceroute parameters are passed to subprocess.run as command-line
+        # text anyway, but we need convert_type()'s None-to-default mapping.
 
         # this one doesn't need any conversion
         self.destination = destination
 
-        # arguments that will need converting to int: count, payload_size, timeout, family
-        self.count = self.convert_type(count, int)
-        self.timeout = self.convert_type(timeout, int)
-        self.max_probes = self.convert_type(max_probes, int)
-        self.dont_resolve_names = self.convert_type(dont_resolve_names, bool)
+        # arguments that need type-checking and converting
+        self.count = self.convert_type(arg=kwargs.get('count'), to_type=int, default=3)
+        self.payload_size = self.convert_type(arg=kwargs.get('payload_size'), to_type=int)
+        self.timeout = self.convert_type(arg=kwargs.get('timeout'), to_type=int, default=1)
+        self.max_probes = self.convert_type(arg=kwargs.get('max_probes'), to_type=int, default=30)
+        self.dont_resolve_names = self.convert_type(arg=kwargs.get('dont_resolve_names'), to_type=bool, default=False)
+        self.interval = self.convert_type(arg=kwargs.get('interval'), to_type=float, default=0.5)
+
+        # Note: we currently don't use addr_family for traceroutes.
+        _ = kwargs.get('addr_family')
+
+        # Convert interval from seconds to milliseconds, type int. Ping & traceroute share the same 'interval' column,
+        # ping expects an interval as seconds whereas traceroute expects milliseconds (and of type int).
+        self.interval = int(self.interval*1000)
 
     def _specific_run(self) -> TracerouteResult:
         """
@@ -464,39 +514,28 @@ class TracerouteTest(Test):
         :return: A subclass of Result, eg. TracerouteResult
         """
 
-        # Because all the Python libraries for traceroute require root privileges, we are going to rely on the Unix
-        # traceroute utility, and we will combine this with the module 'jc', which converts the output of many Unix
-        # command-line utilities into JSON, which is then easy to parse.
-
-        # Step 0: construct the list parameter that subprocess.check_output requires, so that we can include our
-        # constructor parameters as arguments to traceroute. For example, only include "-n" if resolve_names = True.
-
         command = [
             "traceroute",
             "-n" if self.dont_resolve_names else "",
             "-w", str(self.timeout),
             "-q", str(self.count),
             "-m", str(self.max_probes),
+            "-z", str(self.interval),
             self.destination,
+            self.payload_size
         ]
 
-        # filter out the empty string that may result if dont_resolve_names is False
-        command = [option for option in command if option]
+        # Filter out any empty-string or None values from command, as these can cause JC to throw an exception.
+        command = [item for item in command if item]
 
-        logger.debug(f"Executing subprocess.check_output({command})")
+        logger.debug(f"{self.__class__.__name__}: Executing subprocess.check_output({command})")
         # run traceroute and capture stdout and stderr to cmd_output
         cmd_output = subprocess.check_output(command, text=True, stderr=subprocess.STDOUT)
 
-        # parse the cmd_output into a dictionary
+        # Use JC to parse the cmd_output into a dictionary
         data = jc.parse("traceroute", cmd_output)
-        # print(json.dumps(data, indent=3))
 
-        # Step 3: parse the data into a TracerouteResult, maybe just timestamp, id_number, destination/address, and
-        # hops (hops could optionally be a class, but we'll worry about that later)
-
-        test_result = TracerouteResult(timestamp=self.timestamp, id_number=self.id_number, data=data)
-
-        return test_result
+        return TracerouteResult(timestamp=self.timestamp, id_number=self.id_number, data=data)
 
 
 class TestEngine:
