@@ -4,10 +4,10 @@
     <option name="autoReloadType" value="SELECTIVE" />
   </component>
   <component name="ChangeListManager">
-    <list default="true" id="644e860a-7218-45d9-810b-cf92d14669a2" name="Changes" comment="Solved the issue of combining ping and traceroute tests into the same CSV. Changed PingTest and TracerouteTest __init__ to kwargs approach. Upgraded ImportHandler.data_cleaner to also assign default values to non-existent args, or args set to None.">
+    <list default="true" id="644e860a-7218-45d9-810b-cf92d14669a2" name="Changes" comment="Changed the way PingResult.__str__ and TracerouteResult.__str__ format their output. Eliminated isInstance code in StdoutExportHandler. Changed Traceroute result debug logging to single line that includes the Hops dict.">
+      <change afterPath="$PROJECT_DIR$/main-web.py" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/requirements.txt" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/ant.py" beforeDir="false" afterPath="$PROJECT_DIR$/ant.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/tests.csv" beforeDir="false" afterPath="$PROJECT_DIR$/tests.csv" afterDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
@@ -36,16 +36,16 @@
     <option name="hideEmptyMiddlePackages" value="true" />
     <option name="showLibraryContents" value="true" />
   </component>
-  <component name="PropertiesComponent"><![CDATA[{
-  "keyToString": {
-    "Python.ant.executor": "Run",
-    "Python.main.executor": "Run",
-    "RunOnceActivity.OpenProjectViewOnStart": "true",
-    "RunOnceActivity.ShowReadmeOnStart": "true",
-    "git-widget-placeholder": "main",
-    "settings.editor.selected.configurable": "com.github.copilot.settings.ApplicationConfigurable"
+  <component name="PropertiesComponent">{
+  &quot;keyToString&quot;: {
+    &quot;Python.ant.executor&quot;: &quot;Run&quot;,
+    &quot;Python.main.executor&quot;: &quot;Run&quot;,
+    &quot;RunOnceActivity.OpenProjectViewOnStart&quot;: &quot;true&quot;,
+    &quot;RunOnceActivity.ShowReadmeOnStart&quot;: &quot;true&quot;,
+    &quot;git-widget-placeholder&quot;: &quot;main&quot;,
+    &quot;settings.editor.selected.configurable&quot;: &quot;com.github.copilot.settings.ApplicationConfigurable&quot;
   }
-}]]></component>
+}</component>
   <component name="RunManager">
     <configuration name="main" type="PythonConfigurationType" factoryName="Python" temporary="true" nameIsGenerated="true">
       <module name="ANT" />
@@ -115,7 +115,15 @@
       <option name="project" value="LOCAL" />
       <updated>1705394882158</updated>
     </task>
-    <option name="localTasksCounter" value="4" />
+    <task id="LOCAL-00004" summary="Changed the way PingResult.__str__ and TracerouteResult.__str__ format their output. Eliminated isInstance code in StdoutExportHandler. Changed Traceroute result debug logging to single line that includes the Hops dict.">
+      <option name="closed" value="true" />
+      <created>1705401400181</created>
+      <option name="number" value="00004" />
+      <option name="presentableId" value="LOCAL-00004" />
+      <option name="project" value="LOCAL" />
+      <updated>1705401400181</updated>
+    </task>
+    <option name="localTasksCounter" value="5" />
     <servers />
   </component>
   <component name="Vcs.Log.Tabs.Properties">
@@ -133,6 +141,7 @@
     <MESSAGE value="Massive changes to internal workings, particularly data-cleansing both globally and for CSVs. Deprecated old method of instantiating a PingResult. Added logging." />
     <MESSAGE value="Shit-tons of changes under the hood, added traceroute capability using built-in commandline traceroute and JC library for JSON parsing the output. Simplified ImportHandler base class so that it creates Test subclass objects fairly dynamically.&quot;" />
     <MESSAGE value="Solved the issue of combining ping and traceroute tests into the same CSV. Changed PingTest and TracerouteTest __init__ to kwargs approach. Upgraded ImportHandler.data_cleaner to also assign default values to non-existent args, or args set to None." />
-    <option name="LAST_COMMIT_MESSAGE" value="Solved the issue of combining ping and traceroute tests into the same CSV. Changed PingTest and TracerouteTest __init__ to kwargs approach. Upgraded ImportHandler.data_cleaner to also assign default values to non-existent args, or args set to None." />
+    <MESSAGE value="Changed the way PingResult.__str__ and TracerouteResult.__str__ format their output. Eliminated isInstance code in StdoutExportHandler. Changed Traceroute result debug logging to single line that includes the Hops dict." />
+    <option name="LAST_COMMIT_MESSAGE" value="Changed the way PingResult.__str__ and TracerouteResult.__str__ format their output. Eliminated isInstance code in StdoutExportHandler. Changed Traceroute result debug logging to single line that includes the Hops dict." />
   </component>
 </project>
